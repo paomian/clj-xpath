@@ -182,18 +182,18 @@ See: format"
 (defmulti $x
   "Perform an xpath query on the given XML document which may be a String, byte array, or InputStream.
 See xml->doc, and xp:compile."
-  (fn [xp xml-thing] (class xml-thing)))
+  (fn [xp xml-thing & [ops]] (class xml-thing)))
 
-(defmethod $x String [xp ^String xml]
-  ($x xp (xml->doc (.getBytes xml *default-encoding*))))
+(defmethod $x String [xp ^String xml & [ops]]
+  ($x xp (xml->doc (.getBytes xml *default-encoding*) ops)))
 
-(defmethod $x (Class/forName "[B") [xp bytes]
-  ($x xp (xml->doc bytes)))
+(defmethod $x (Class/forName "[B") [xp bytes & [ops]]
+  ($x xp (xml->doc bytes ops)))
 
-(defmethod $x InputStream [xp istr]
-  ($x xp (xml->doc istr)))
+(defmethod $x InputStream [xp istr & [ops]]
+  ($x xp (xml->doc istr ops)))
 
-(defmethod $x java.util.Map                   [xp xml] ($x xp (:node xml)))
+(defmethod $x java.util.Map [xp xml] ($x xp (:node xml)))
 
 ;; assume a Document (or api compatible)
 (defmethod $x :default [xp-expression ^Document doc]
@@ -211,13 +211,13 @@ See xml->doc, and xp:compile."
 
 (defn $x:tag*
   "Perform an xpath search, resulting in zero or more nodes, return just the tag name."
-  [xp xml]
-  (map :tag ($x xp xml)))
+  [xp xml & [ops]]
+  (map :tag ($x xp xml ops)))
 
 (defn $x:tag?
   "Perform an xpath search, resulting in zero or one node.  Return only the tag name."
-  [xp xml]
-  (let [res ($x:tag* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:tag* xp xml ops)]
     (if (next res)
       (throwf "Error, more than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -227,8 +227,8 @@ See xml->doc, and xp:compile."
 
 (defn $x:tag+
   "Perform an xpath search, resulting in one or more nodes.  Return only the tag name."
-  [xp xml]
-  (let [res ($x:tag* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:tag* xp xml ops)]
     (if (< (count res) 1)
       (throwf "Error, less than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -236,9 +236,9 @@ See xml->doc, and xp:compile."
               xp))
     res))
 
-(defn $x:tag [xp xml]
+(defn $x:tag [xp xml & [ops]]
   "Perform an xpath search, resulting in one and only one node.  Return only the tag name."
-  (let [res ($x:tag* xp xml)]
+  (let [res ($x:tag* xp xml ops)]
     (if (not (= 1 (count res)))
       (throwf "Error, more (or less) than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -248,13 +248,13 @@ See xml->doc, and xp:compile."
 
 (defn $x:text*
   "Perform an xpath search, resulting in zero or more nodes.  Return only each the node's text."
-  [xp xml]
-  (map :text ($x xp xml)))
+  [xp xml & [ops]]
+  (map :text ($x xp xml ops)))
 
 (defn $x:text?
   "Perform an xpath search, resulting in zero or one node.  Return only the node's text."
-  [xp xml]
-  (let [res ($x:text* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:text* xp xml ops)]
     (if (next res)
       (throwf "Error, more than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -264,8 +264,8 @@ See xml->doc, and xp:compile."
 
 (defn $x:text+
   "Perform an xpath search, resulting in one or more nodes.  Return only each the node's text."
-  [xp xml]
-  (let [res ($x:text* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:text* xp xml ops)]
     (if (< (count res) 1)
       (throwf "Error, less than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -275,8 +275,8 @@ See xml->doc, and xp:compile."
 
 (defn $x:text
   "Perform an xpath search, resulting in one and only one node.  Return only the node's text."
-  [xp xml]
-  (let [res ($x:text* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:text* xp xml & [ops])]
     (if (not (= 1 (count res)))
       (throwf "Error, more (or less) than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -287,14 +287,18 @@ See xml->doc, and xp:compile."
 (defn $x:attrs*
   "Perform an xpath search, resulting in zero or more nodes.  When an attr-name is passed, return only each the node's attrs."
   ([xp xml]
-     (map attrs (map :node ($x xp xml))))
+   (map attrs (map :node ($x xp xml))))
+  ([xp xml ops]
+   (map attrs (map :node ($x xp xml ops))))
   ([xp xml attr-name]
-     (map (if (keyword? attr-name) attr-name (keyword attr-name)) (map attrs (map :node ($x xp xml))))))
+   (map (if (keyword? attr-name) attr-name (keyword attr-name)) (map attrs (map :node ($x xp xml)))))
+  ([xp xml attr-name ops]
+   (map (if (keyword? attr-name) attr-name (keyword attr-name)) (map attrs (map :node ($x xp xml ops))))))
 
 (defn $x:attrs?
   "Perform an xpath search, resulting in zero or one node.  Return only the node's attrs."
-  [xp xml]
-  (let [res (map attrs (map :node ($x xp xml)))]
+  [xp xml & [ops]]
+  (let [res (map attrs (map :node ($x xp xml ops)))]
     (if (next res)
       (throwf "Error, more than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -304,8 +308,8 @@ See xml->doc, and xp:compile."
 
 (defn $x:attrs+
   "Perform an xpath search, resulting in one or more nodes.  Return only each the node's attrs."
-  [xp xml]
-  (let [res (map attrs (map :node ($x xp xml)))]
+  [xp xml & [ops]]
+  (let [res (map attrs (map :node ($x xp xml ops)))]
     (if (< (count res) 1)
       (throwf "Error, less than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -316,8 +320,8 @@ See xml->doc, and xp:compile."
 
 (defn $x:attrs
   "Perform an xpath search, resulting in one and only one node.  Return only the node's attrs."
-  [xp xml]
-  (let [res (map attrs (map :node ($x xp xml)))]
+  [xp xml & [ops]]
+  (let [res (map attrs (map :node ($x xp xml ops)))]
     (if (not (= 1 (count res)))
       (throwf "Error, more (or less) than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -327,13 +331,13 @@ See xml->doc, and xp:compile."
 
 (defn $x:node*
   "Perform an xpath search, resulting in zero or more nodes.  Returns the nodes."
-  [xp xml]
-  (map :node ($x xp xml)))
+  [xp xml & [ops]]
+  (map :node ($x xp xml ops)))
 
 (defn $x:node?
   "Perform an xpath search, resulting in zero or one node.  Returns the node."
-  [xp xml]
-  (let [res ($x:node* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:node* xp xml ops)]
     (if (next res)
       (throwf "Error, more than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -343,8 +347,8 @@ See xml->doc, and xp:compile."
 
 (defn $x:node+
   "Perform an xpath search, resulting in one or more nodes.  Returns the nodes."
-  [xp xml]
-  (let [res ($x:node* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:node* xp xml ops)]
     (if (< (count res) 1)
       (throwf "Error, less than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -354,8 +358,8 @@ See xml->doc, and xp:compile."
 
 (defn $x:node
   "Perform an xpath search, resulting in one and only one node.  Returns the node."
-  [xp xml]
-  (let [res ($x:node* xp xml)]
+  [xp xml & [ops]]
+  (let [res ($x:node* xp xml ops)]
     (if (not (= 1 (count res)))
       (throwf "Error, more (or less) than 1 result (%d) from xml(%s) for xpath(%s)"
               (count res)
@@ -416,13 +420,13 @@ See xml->doc, and xp:compile."
 
 (defn xmlnsmap-from-root-node
   "Extract a map of XML Namespace prefix to URI (and URI to prefix) from the root node of the document."
-  [xml]
-  (xmlnsmap-from-node (first ($x:node* "//*" xml))))
+  [xml & [ops]]
+  (xmlnsmap-from-node (first ($x:node* "//*" xml ops))))
 
 (defn xmlnsmap-from-document
   "Extract a map of XML Namespace prefix to URI (and URI to prefix) recursively from the entire document."
-  [xml]
-  (let [^Node node   (xml->doc xml)]
+  [xml & [ops]]
+  (let [^Node node   (xml->doc xml ops)]
     (reduce
      (fn merge-nsmaps [m node]
        (merge
